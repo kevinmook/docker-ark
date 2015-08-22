@@ -1,0 +1,70 @@
+#!/bin/bash -e
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+DOCKER_MACHINE_NAME=dev
+
+
+usage() {
+  cat <<END
+Usage: $progname OPTIONS
+  -h            Display this help text
+  -i            Interactive mode - show a bash console
+  -p            Specify listen port. Defaults to 27015
+  -d            Specify data container. Defaults to ark_data
+  -f            Force a rebuild of the main docker container
+  -D            Connect to the data container
+${*:-}
+END
+  exit 1
+}
+
+while getopts "hp:id:fD" OPTION ; do
+  case $OPTION in
+    h)
+      usage
+      ;;
+    p)
+      PORT=$OPTARG
+      ;;
+    d)
+      DATA_CONTAINER=$OPTARG
+      ;;
+    i)
+      INTERACTIVE=true
+      ;;
+    f)
+      force_rebuild=true
+      ;;
+    D)
+      CONNECT_TO_DATA=true
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+CONTAINER=ark
+DATA_CONTAINER=${DATA_CONTAINER:-ark_data}
+PORT=${PORT:-27015}
+SEVEN_PORT=7777
+CONNECT_TO_DATA=${CONNECT_TO_DATA:-false}
+
+$DIR/docker-tools/build_data -c $DATA_CONTAINER -v /data
+
+extra_build_flags=
+if [ "$force_rebuild" == "true" ]; then
+  extra_build_flags="$build_flags -f"
+fi
+$DIR/docker-tools/build -c $CONTAINER -p "$DIR/.." $extra_build_flags
+
+# --volumes-from mounts another container's volumes
+# -it tells it to keep STDIN open (-i) and to allocate a tty for the container process (-t)
+# -p forwards an external port to a port within the container
+if [ "$CONNECT_TO_DATA" == "true" ]; then
+  docker run    --volumes-from $DATA_CONTAINER -v /data -it phusion/baseimage:0.9.17 /sbin/my_init --quiet -- /bin/bash
+elif [ "$INTERACTIVE" == "true" ]; then
+  docker run    --volumes-from $DATA_CONTAINER -v /data -p $PORT:27015/tcp -p $PORT:27015/udp -p $SEVEN_PORT:7777/tcp -p $SEVEN_PORT:7777/udp -it $CONTAINER /sbin/my_init --quiet -- /bin/bash
+else
+  docker run -d --volumes-from $DATA_CONTAINER -v /data -p $PORT:27015/tcp -p $PORT:27015/udp -p $SEVEN_PORT:7777/tcp -p $SEVEN_PORT:7777/udp     $CONTAINER
+fi

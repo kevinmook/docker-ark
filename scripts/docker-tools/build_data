@@ -1,0 +1,45 @@
+#!/bin/bash -e
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+DATA_BASE_IMAGE_VERSION=0.9.17
+
+usage() {
+  cat <<END
+Usage: $progname OPTIONS
+  -c            Required: Specify the container name. Will only be built if it doesn't exist
+  -v            Required: Path within the container where the volume should be mounted
+  -h            Display this help text
+${*:-}
+END
+  exit 1
+}
+
+while getopts "c:v:" OPTION ; do
+  case $OPTION in
+    c)
+      container_name=$OPTARG
+      ;;
+    v)
+      mount_path=$OPTARG
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+if [ -z "$container_name" ]; then
+  echo "Please specify the container name with -c <container_name>"
+  exit 1
+fi
+
+if [ -z "$mount_path" ]; then
+  echo "Please specify where within the container the volumne should be mounted with -v <mount_path>"
+  exit 1
+fi
+
+if [ -z "$(docker ps -a | grep -E '\s+'"$container_name"'\s*$')" ]; then
+  # no docker containers with the term "$container_name" in their description
+  docker run --name $container_name -v $mount_path phusion/baseimage:$DATA_BASE_IMAGE_VERSION echo "Data built"
+fi
+

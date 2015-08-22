@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+
+cd /data/ark/arkdedicated/ShooterGame/Binaries/Linux/
+export LD_LIBRARY_PATH=/data/ark/arkdedicated/
+
+./ShooterGameServer TheIsland?listen?SessionName=KevinDedicated?QueryPort=27015?ServerPassword=test?ServerAdminPassword=testtest -game -server -log LimitNOFILE=100000
